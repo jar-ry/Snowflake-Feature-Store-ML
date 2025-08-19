@@ -1,0 +1,6 @@
+{
+  "account"   : "<your_account_identifier_goes_here>",
+  "user"      : "<your_username_goes_here>",
+  "password"  : "<your_password_goes_here>",
+  "role"      : "FS_QS_ROLE"
+}
