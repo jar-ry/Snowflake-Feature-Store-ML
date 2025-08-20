@@ -5,6 +5,7 @@ from os.path import isfile, join
 import json
 import numpy as np
 from snowflake.snowpark.version import VERSION
+import snowflake.snowpark.functions as F
 
 def run_sql(sql_statement, session):
     """
@@ -138,3 +139,9 @@ def create_SF_Session(schema):
     print(f'Snowpark for Python version : {snowpark_version[0]}.{snowpark_version[1]}.{snowpark_version[2]} \n')
 
     return fs_qs_role, tpcxai_database, schema, session, warehouse_env
+
+def get_spine_df(dataframe):
+    spine_sdf =  dataframe.feature_df.group_by('O_CUSTOMER_SK').agg( F.max('LATEST_ORDER_DATE').as_('ASOF_DATE'))#.limit(10)
+    spine_sdf = spine_sdf.with_column("col_1", F.lit("values1"))
+    spine_sdf = spine_sdf.with_column("col_2", F.lit("values2"))
+    return spine_sdf
