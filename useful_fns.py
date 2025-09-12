@@ -40,6 +40,25 @@ def check_and_update(df, model_name):
         lst[-1] = new_last_value
         return new_last_value 
 
+def get_latest(df, model_name):
+    """
+    Check and update the version numbering scheme for Model Registry 
+    to get the next version number for a model.
+    df         : dataframe from show_models
+    model_name : model-name to acquire next version for
+    """
+    if df.empty:
+        return "V_1"
+    elif df[df["name"] == model_name].empty:
+        return "V_1"
+    else:
+        # Increment model_version if df is not a pandas Series
+        lst = sorted(ast.literal_eval(df["versions"][0]))
+        last_value = lst[-1]
+        prefix, num = last_value.rsplit("_", 1)
+        new_last_value = f"{prefix}_{int(num)}"
+        return new_last_value 
+
 import sqlglot
 import sqlglot.optimizer.optimizer
 def formatSQL (query_in:str, subq_to_cte = False):
@@ -56,7 +75,7 @@ def formatSQL (query_in:str, subq_to_cte = False):
 
 from snowflake.ml.registry import Registry
 from snowflake.ml._internal.utils import identifier  
-def create_ModelRegistry(session, database, mr_schema = '_MODEL_REGISTRY'):
+def create_ModelRegistry(session, database, mr_schema = 'MODEL_1'):
     """
     Create Snowflake Model Registry if not exists and return as reference.
     session   : Snowpark session
@@ -143,5 +162,4 @@ def create_SF_Session(schema):
 def get_spine_df(dataframe):
     spine_sdf =  dataframe.feature_df.group_by('O_CUSTOMER_SK').agg( F.max('LATEST_ORDER_DATE').as_('ASOF_DATE'))#.limit(10)
     spine_sdf = spine_sdf.with_column("col_1", F.lit("values1"))
-    spine_sdf = spine_sdf.with_column("col_2", F.lit("values2"))
     return spine_sdf

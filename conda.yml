@@ -1,0 +1,15 @@
+name: py-snowpark_df_ml_fs
+channels:
+  - https://repo.anaconda.com/pkgs/snowflake
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - pyarrow
+  - jupyterlab
+  - tabulate
+  - snowflake-telemetry-python
+  - snowflake
+  - scikit-learn=1.5.1
+  - fastparquet
+  - matplotlib

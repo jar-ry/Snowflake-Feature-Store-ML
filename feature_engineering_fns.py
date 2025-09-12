@@ -57,17 +57,20 @@ def uc01_pre_process(data: DataFrame) -> DataFrame:
 
     # Calculate price RETURN RATIO per Customer
     groups = groups.withColumn("RATIO", groups["RETURN_ROW_PRICE"] / groups["ROW_PRICE"])
-    ratio = groups.groupBy("O_CUSTOMER_SK").agg(F.avg(F.col("RATIO")).cast(T.FloatType()).alias("RETURN_RATIO"), 
+    ratio = groups.groupBy("O_CUSTOMER_SK").agg(F.avg(F.col("RATIO")).cast(T.DecimalType()).alias("RETURN_RATIO"), 
+                                                F.avg(F.col("RETURN_ROW_PRICE")).cast(T.DecimalType()).alias("RETURN_ROW_PRICE"), 
                                                 F.max(F.col("LATEST_ORDER_DATE")).alias("LATEST_ORDER_DATE")
                                                 )
 
     # Calculate average annual shopping FREQUENCY 
-    frequency_groups = groups.groupBy("O_CUSTOMER_SK", "INVOICE_YEAR").agg(F.count(F.col("O_ORDER_ID")).cast(T.FloatType()).alias("FREQUENCY"))
+    frequency_groups = groups.groupBy("O_CUSTOMER_SK", "INVOICE_YEAR").agg(F.count(F.col("O_ORDER_ID")).cast(T.DecimalType()).alias("FREQUENCY"))
     frequency = frequency_groups.groupBy("O_CUSTOMER_SK").agg(F.avg(F.col("FREQUENCY")).alias("FREQUENCY"))
 
     # Merge FREQUENCY and RETURN_RATIO
     result = frequency.join(ratio, on="O_CUSTOMER_SK")
-
+    result = result.with_column("FREQUENCY", F.col("FREQUENCY").cast(T.DecimalType(scale=3)))
+    result = result.with_column("RETURN_RATIO", F.col("RETURN_RATIO").cast(T.DecimalType(scale=3)))
+    result = result.with_column("RETURN_ROW_PRICE", F.col("RETURN_ROW_PRICE").cast(T.DecimalType(scale=3)))
     return result
 
 def uc01_pre_process_v2(data: DataFrame) -> DataFrame:
@@ -89,15 +92,18 @@ def uc01_pre_process_v2(data: DataFrame) -> DataFrame:
 
     # Calculate price RETURN RATIO per Customer
     groups = groups.withColumn("RATIO", groups["RETURN_ROW_PRICE"] / groups["ROW_PRICE"])
-    ratio = groups.groupBy("O_CUSTOMER_SK").agg(F.median(F.col("RATIO")).cast(T.FloatType()).alias("RETURN_RATIO"), 
+    ratio = groups.groupBy("O_CUSTOMER_SK").agg(F.max(F.col("RATIO")).cast(T.DecimalType()).alias("RETURN_RATIO"), 
+                                                F.avg(F.col("RETURN_ROW_PRICE")).cast(T.DecimalType()).alias("RETURN_ROW_PRICE"), 
                                                 F.max(F.col("LATEST_ORDER_DATE")).alias("LATEST_ORDER_DATE")
                                                 )
 
     # Calculate average annual shopping FREQUENCY 
-    frequency_groups = groups.groupBy("O_CUSTOMER_SK", "INVOICE_YEAR").agg(F.count(F.col("O_ORDER_ID")).cast(T.FloatType()).alias("FREQUENCY"))
+    frequency_groups = groups.groupBy("O_CUSTOMER_SK", "INVOICE_YEAR").agg(F.count(F.col("O_ORDER_ID")).cast(T.DecimalType()).alias("FREQUENCY"))
     frequency = frequency_groups.groupBy("O_CUSTOMER_SK").agg(F.avg(F.col("FREQUENCY")).alias("FREQUENCY"))
 
     # Merge FREQUENCY and RETURN_RATIO
     result = frequency.join(ratio, on="O_CUSTOMER_SK")
-
+    result = result.with_column("FREQUENCY", F.col("FREQUENCY").cast(T.DecimalType(scale=3)))
+    result = result.with_column("RETURN_RATIO", F.col("RETURN_RATIO").cast(T.DecimalType(scale=3)))
+    result = result.with_column("RETURN_ROW_PRICE", F.col("RETURN_ROW_PRICE").cast(T.DecimalType(scale=3)))
     return result
