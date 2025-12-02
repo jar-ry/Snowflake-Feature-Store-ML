@@ -6,6 +6,11 @@ import json
 import numpy as np
 from snowflake.snowpark.version import VERSION
 import snowflake.snowpark.functions as F
+from snowflake.ml.dataset import Dataset
+from snowflake.ml._internal.exceptions import (
+    dataset_errors
+)
+
 
 def run_sql(sql_statement, session):
     """
@@ -27,15 +32,50 @@ def check_and_update(df, model_name):
     df         : dataframe from show_models
     model_name : model-name to acquire next version for
     """
+    if "." in model_name:
+        model_name = model_name.split(".")[-1]
     if df.empty:
         return "V_1"
     elif df[df["name"] == model_name].empty:
         return "V_1"
     else:
         # Increment model_version if df is not a pandas Series
-        lst = sorted(ast.literal_eval(df["versions"][0]))
+        # The result is a Series where each element is a list (e.g., [ "V_1", "V_2" ])
+        list_of_lists = df["versions"].apply(ast.literal_eval)
+
+        # Step 2: Flatten the list of lists into a single list
+        all_versions = [version for sublist in list_of_lists for version in sublist]
+
+        # Step 3: Sort the resulting single list
+        lst = sorted(all_versions)
         last_value = lst[-1]
         prefix, num = last_value.rsplit("_", 1)
+        new_last_value = f"{prefix}_{int(num)+1}"
+        lst[-1] = new_last_value
+        return new_last_value 
+    
+def dataset_check_and_update(session, dataset_name):
+    """
+    Check and update the version numbering scheme for Dataset
+    to get the next version number for a dataset.
+    session         : current session
+    dataset_name : dataset_name to acquire next version for
+    """
+    full_name = session.get_current_database() + "." + session.get_current_schema() + "." + dataset_name
+    try:
+        ds = Dataset.load(session=session, name=full_name)
+        versions = ds.list_versions()
+    except dataset_errors.DatasetNotExistError:
+        return "V_1"
+
+    if len(versions) == 0:
+        return "V_1"
+    else:
+        # Step 3: Sort the resulting single list
+        lst = sorted(versions)
+        last_value = lst[-1]
+        prefix, num = last_value.rsplit("_", 1)
+        print(lst, last_value)
         new_last_value = f"{prefix}_{int(num)+1}"
         lst[-1] = new_last_value
         return new_last_value 
@@ -115,12 +155,9 @@ def create_FeatureStore(session, database, fs_schema, warehouse):
 
     return fs
 
-def create_SF_Session(schema):
+def create_SF_Session(schema, role = 'FS_QS_ROLE'):
     # Scale Factor
     scale_factor               = 'SF0001'
-
-    # Roles
-    fs_qs_role                 = 'FS_QS_ROLE'
 
     # Database
     tpcxai_database_base       = f'TPCXAI_{scale_factor}_QUICKSTART'
@@ -138,7 +175,7 @@ def create_SF_Session(schema):
     # Set  Environment
     session.sql(f'''use database {tpcxai_database}''').collect()
     session.sql(f'''use schema {schema}''').collect()
-    session.sql(f'''use role {fs_qs_role}''').collect()
+    session.sql(f'''use role {role}''').collect()
 
     # Create a Warehouse
     #warehouse_env = f"""{tpcxai_database}_{schema}"""
@@ -157,7 +194,7 @@ def create_SF_Session(schema):
     print(f'Snowflake version           : {snowflake_environment[0][1]}')
     print(f'Snowpark for Python version : {snowpark_version[0]}.{snowpark_version[1]}.{snowpark_version[2]} \n')
 
-    return fs_qs_role, tpcxai_database, schema, session, warehouse_env
+    return role, tpcxai_database, schema, session, warehouse_env
 
 def get_spine_df(dataframe):
     spine_sdf =  dataframe.feature_df.group_by('O_CUSTOMER_SK').agg( F.max('LATEST_ORDER_DATE').as_('ASOF_DATE'))#.limit(10)
